@@ -16,7 +16,6 @@ mongoose.connect(process.env.MONGODB_URI, {
 
 // Product Schema
 const productSchema = new mongoose.Schema({
-    productId:{type:String,required:true},
     name: { type: String, required: true },
     price: { type: Number, required: true },
     inventory: { type: Number, required: true },
@@ -38,8 +37,7 @@ amqp.connect(process.env.RABBITMQ_URI, (error, connection) => {
 // Create a product
 app.post('/products', async (req, res) => {
     const { name, price, inventory } = req.body;
-    const productId="2";
-    const product = new Product({ productId, name, price, inventory });
+    const product = new Product({ name, price, inventory });
     await product.save();
     channel.sendToQueue('productQueue', Buffer.from(JSON.stringify({ action: 'create', product })));
     res.status(201).json({ message: 'Product created successfully' });
@@ -59,16 +57,6 @@ app.patch('/products/:id/inventory', async (req, res) => {
     res.json({ message: 'Inventory updated successfully' });
 });
 
-app.get('/products/:productId', async (req, res) => {
-    const { productId } = req.params; // Extract the id from the request parameters
-    try {
-        const product = await Product.findById(productId); // Use findById to fetch user by ID
-        if (!product) return res.status(404).json({ message: 'User not found' }); // Check if user exists
-        res.json(product); // Return the user data
-    } catch (error) {
-        return res.status(500).json({ message: 'Failed to fetch user', error: error.message }); // Handle errors
-    }
-});
 // Start the server
 const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {

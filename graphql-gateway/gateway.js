@@ -10,36 +10,43 @@ const app = express();
 // Define type definitions
 const typeDefs = gql`
     type User {
-        id: String!
+        id: ID!
         username: String!
     }
 
     type Product {
-        id: String!
+        id: ID!
         name: String!
         price: Float!
         inventory: Int!
     }
 
     type Order {
+        id: ID!
         userId: String!
         productId: String!
         quantity: Int!
     }
 
+    input ProductInput {          # Define the input type for products
+        name: String!
+        price: Float!
+        inventory: Int!
+    }
+
     type Query {
         users: [User]
-        user(userId: String!): User
+        user(id: ID!): User
         products: [Product]
-        product(productId:String!):Product
+        product(id: ID!): Product
         orders: [Order]
-        order(id:String!):Order
+        order(id: ID!): Order
     }
 
     type Mutation {
         register(username: String!, password: String!): String
         login(username: String!, password: String!): String
-        createProduct(name:String!,price:float:inventory:int): String    
+        createProduct(input: ProductInput!): Product    # Updated to return Product
         placeOrder(userId: String!, productId: String!, quantity: Int!): String
     }
 `;
@@ -59,16 +66,16 @@ const resolvers = {
             const response = await axios.get(`http://localhost:3002/products`);
             return response.data;
         },
-        product: async (_, { productId }) => {
-            const response = await axios.get(`http://localhost:3001/products/${productId}`);
+        product: async (_, { id }) => {    // Added resolver for single order
+            const response = await axios.get(`http://localhost:3002/products/${id}`);
             return response.data;
         },
         orders: async () => {
             const response = await axios.get(`http://localhost:3003/orders`);
             return response.data;
         },
-        order: async (_, { orderId }) => {
-            const response = await axios.get(`http://localhost:3001/orders/${orderId}`);
+        order: async (_, { id }) => {    // Added resolver for single order
+            const response = await axios.get(`http://localhost:3003/orders/${id}`);
             return response.data;
         }
     },
@@ -81,8 +88,8 @@ const resolvers = {
             const response = await axios.post(`http://localhost:3001/login`, { username, password });
             return response.data.token;
         },
-        createProduct: async (_, { name,price,inventory }) => {   // Adjusted to accept input and return Product
-            const response = await axios.post(`http://localhost:3002/products`, {name,price,inventory});
+        createProduct: async (_, { input }) => {   // Adjusted to accept input and return Product
+            const response = await axios.post(`http://localhost:3002/products`, input);
             return response.data;  // Assuming your product service returns the created product object
         },
         placeOrder: async (_, { userId, productId, quantity }) => {

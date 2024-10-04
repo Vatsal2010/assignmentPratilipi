@@ -1,5 +1,3 @@
-// orderService.js
-
 const express = require('express');
 const mongoose = require('mongoose');
 const amqp = require('amqplib/callback_api');
@@ -16,10 +14,11 @@ mongoose.connect(process.env.MONGODB_URI, {
 
 // Order Schema
 const orderSchema = new mongoose.Schema({
-    userId: { type: String, required: true },
-    productId: { type: String, required: true },
-    quantity: { type: Number, required: true },
-});
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+    quantity: { type: Number, required: true, min: 1 },
+    status: { type: String, enum: ['pending', 'completed', 'cancelled'], default: 'pending' },
+}, { timestamps: true });
 
 const Order = mongoose.model('Order', orderSchema);
 
@@ -38,26 +37,40 @@ amqp.connect(process.env.RABBITMQ_URI, (error, connection) => {
 app.post('/orders', async (req, res) => {
     const { userId, productId, quantity } = req.body;
     const order = new Order({ userId, productId, quantity });
-    await order.save();
-    channel.sendToQueue('orderQueue', Buffer.from(JSON.stringify({ action: 'create', order })));
-    res.status(201).json({ message: 'Order placed successfully' });
-});
-
-app.get('/orders/:orderId', async (req, res) => {
-    const { orderId } = req.params; // Extract the id from the request parameters
+    
     try {
-        const order = await Order.findById(orderId); // Use findById to fetch user by ID
-        if (!order) return res.status(404).json({ message: 'User not found' }); // Check if user exists
-        res.json(order); // Return the user data
+        await order.save();
+        channel.sendToQueue('orderQueue', Buffer.from(JSON.stringify({ action: 'create', order })));
+        res.status(201).json({ message: 'Order placed successfully' });
     } catch (error) {
-        return res.status(500).json({ message: 'Failed to fetch user', error: error.message }); // Handle errors
+        console.error('Error creating order:', error); // Log the error
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
 
 // Get all orders
 app.get('/orders', async (req, res) => {
-    const orders = await Order.find();
-    res.json(orders);
+    try {
+        const orders = await Order.find().populate('userId productId'); // Populate userId and productId
+        res.json(orders);
+    } catch (error) {
+        console.error('Error fetching orders:', error); // Log the error
+        res.status(500).json({ message: 'Internal server error' });
+    }
+});
+
+// Get an order by ID
+app.get('/orders/:id', async (req, res) => {
+    try {
+        const order = await Order.findById(req.params.id).populate('userId productId'); // Populate userId and productId
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+        res.json(order);
+    } catch (error) {
+        console.error('Error fetching order:', error); // Log the error
+        res.status(500).json({ message: 'Internal server error' });
+    }
 });
 
 // Start the server

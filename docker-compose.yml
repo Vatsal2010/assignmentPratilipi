@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  graphql-gateway:
+    build:
+      context: ./graphql-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"  # Map to your preferred host port
+
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"  # Map to your preferred host port
+
+  product-service:
+    build:
+      context: ./product-service
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3000"  # Map to your preferred host port
+
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    ports:
+      - "3003:3000"  # Map to your preferred host port
